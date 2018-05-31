@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="handler机制 梳理 一直自认为对handler机制算是已经了解透彻了，一次偶然的机会发现 工作一段时间后我他丫的居然块忘干净了 今天重新梳理下，希望能更加深入  先总结几个核心的类，避免以后看这个记录会摸不到头绪ActivityThread Loop ThreadLocal MessageQueue Message Handler 好目录已经有了 ，现在要做的是定义一下这几个类干嘛用的了 A">
+<meta property="og:type" content="article">
+<meta property="og:title" content="handler机制 梳理">
+<meta property="og:url" content="http://yoursite.com/2017/04/05/android handler消息机制 源码分析梳理/index.html">
+<meta property="og:site_name" content="凌霄殿">
+<meta property="og:description" content="handler机制 梳理 一直自认为对handler机制算是已经了解透彻了，一次偶然的机会发现 工作一段时间后我他丫的居然块忘干净了 今天重新梳理下，希望能更加深入  先总结几个核心的类，避免以后看这个记录会摸不到头绪ActivityThread Loop ThreadLocal MessageQueue Message Handler 好目录已经有了 ，现在要做的是定义一下这几个类干嘛用的了 A">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2018-05-31T08:23:48.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="handler机制 梳理">
+<meta name="twitter:description" content="handler机制 梳理 一直自认为对handler机制算是已经了解透彻了，一次偶然的机会发现 工作一段时间后我他丫的居然块忘干净了 今天重新梳理下，希望能更加深入  先总结几个核心的类，避免以后看这个记录会摸不到头绪ActivityThread Loop ThreadLocal MessageQueue Message Handler 好目录已经有了 ，现在要做的是定义一下这几个类干嘛用的了 A">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2017/04/05/android handler消息机制 源码分析梳理/"/>
+
+
+
+
+
+  <title>handler机制 梳理 | 凌霄殿</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">凌霄殿</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2017/04/05/android handler消息机制 源码分析梳理/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhe8300975">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="凌霄殿">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">handler机制 梳理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-04-05T03:22:48+08:00">
+                2017-04-05
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="handler机制-梳理"><a href="#handler机制-梳理" class="headerlink" title="handler机制 梳理"></a>handler机制 梳理</h1><blockquote>
+<p>一直自认为对handler机制算是已经了解透彻了，一次偶然的机会发现 工作一段时间后我他丫的居然块忘干净了 今天重新梳理下，希望能更加深入</p>
+</blockquote>
+<p>先总结几个核心的类，避免以后看这个记录会摸不到头绪<br><strong><em>ActivityThread</em></strong></p>
+<p><strong><em>Loop</em></strong></p>
+<p><strong><em>ThreadLocal</em></strong></p>
+<p><strong><em>MessageQueue</em></strong></p>
+<p><strong><em>Message</em></strong></p>
+<p><strong><em>Handler</em></strong></p>
+<p>好目录已经有了 ，现在要做的是定义一下这几个类干嘛用的了</p>
+<h4 id="ActivityThread是什么？"><a href="#ActivityThread是什么？" class="headerlink" title="ActivityThread是什么？"></a>ActivityThread是什么？</h4><blockquote>
+<p><strong>ActivityThread</strong> 有人说的是主线程 或者 UI线程 ，个人认为这么说是不对的,我们来看下ActivityThread的定义<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">public final class ActivityThread &#123;</span><br></pre></td></tr></table></figure></p>
+</blockquote>
+<blockquote>
+<p>ActivityThread不过是一个简单类和线程的Thread貌似好像没啥关系。</p>
+<p>那为什么有人会说ActivityThread是主线程呢？原因很简单就是在app启动的时候Zygote会被fork一个新的进程也就是app所运行的进程。进程的有了后会加载ActivitThread这个类，那么根据java基础，我们之后他会运行static main函数  mian里面new了个ActivityThread 所以ActivityThread开始运行在了主线程里（这里也有可能是我理解的不到位，如有好的理解方式还请赐教）</p>
+</blockquote>
+<p>下面是main的5.0的源码，要是心烦可以直接跳过代码块 因为里面就4句话对我们有用的</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line">5184 public static void main(String[] args) &#123;</span><br><span class="line">5185        SamplingProfilerIntegration.start();</span><br><span class="line">5186</span><br><span class="line">5187        // CloseGuard defaults to true and can be quite spammy.  We</span><br><span class="line">5188        // disable it here, but selectively enable it later (via</span><br><span class="line">5189        // StrictMode) on debug builds, but using DropBox, not logs.</span><br><span class="line">5190        CloseGuard.setEnabled(false);</span><br><span class="line">5191</span><br><span class="line">5192        Environment.initForCurrentUser();</span><br><span class="line">5193</span><br><span class="line">5194        // Set the reporter for event logging in libcore</span><br><span class="line">5195        EventLogger.setReporter(new EventLoggingReporter());</span><br><span class="line">5196</span><br><span class="line">5197        Security.addProvider(new AndroidKeyStoreProvider());</span><br><span class="line">5198</span><br><span class="line">5199        // Make sure TrustedCertificateStore looks in the right place for CA certificates</span><br><span class="line">5200        final File configDir = Environment.getUserConfigDirectory(UserHandle.myUserId());</span><br><span class="line">5201        TrustedCertificateStore.setDefaultUserDirectory(configDir);</span><br><span class="line">5202</span><br><span class="line">5203        Process.setArgV0(&quot;&lt;pre-initialized&gt;&quot;);</span><br><span class="line">5204</span><br><span class="line">5205        Looper.prepareMainLooper();</span><br><span class="line">5206</span><br><span class="line">5207        ActivityThread thread = new ActivityThread();</span><br><span class="line">5208        thread.attach(false);</span><br><span class="line">5209</span><br><span class="line">5210        if (sMainThreadHandler == null) &#123;</span><br><span class="line">5211            sMainThreadHandler = thread.getHandler();</span><br><span class="line">5212        &#125;</span><br><span class="line">5213</span><br><span class="line">5214        AsyncTask.init();</span><br><span class="line">5215</span><br><span class="line">5216        if (false) &#123;</span><br><span class="line">5217            Looper.myLooper().setMessageLogging(new</span><br><span class="line">5218                    LogPrinter(Log.DEBUG, &quot;ActivityThread&quot;));</span><br><span class="line">5219        &#125;</span><br><span class="line">5220</span><br><span class="line">5221        Looper.loop();</span><br><span class="line">5222</span><br><span class="line">5223        throw new RuntimeException(&quot;Main thread loop unexpectedly exited&quot;);</span><br><span class="line">5224    &#125;</span><br><span class="line">5225&#125;</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>5207，5208行中创建了一个ActivityThread 并将当前的数据初始化到了ActivityThread中</p>
+</blockquote>
+<p><strong>然后重点关注下</strong></p>
+<blockquote>
+<p>5205的<figure class="highlight plain"><figcaption><span>里面创建了一个Looper实例，并保存在ThreadLocal中 （ThreadLocal之后说干什么的，先有个印象）</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br></pre></td><td class="code"><pre><span class="line">&gt;</span><br><span class="line">&gt;5221的```Looper.loop();``` 开启Looper的循环进行处理</span><br><span class="line"></span><br><span class="line">开启流程到这就结束了，而主线程从此就进入了一个死循环;PS：之后的生命周期管理呀，ui处理呀都是在loop里面的循环进行处理的</span><br><span class="line"></span><br><span class="line">#### Loop是什么？</span><br><span class="line">&gt;&gt;**Loop** 核心是一个死循环，用于循环**处理**MessageQueue的信息</span><br><span class="line">这里注意下我用的词 **死循环**和**处理**  之后就会明白我为什么用这两个词了</span><br><span class="line"></span><br><span class="line">这里先说一个概念 ***每个线程中默认是没有Looper的，如果想使用就必须需要自己为线程初始化一个Looper，而主线程在创建的时候就为初始化了一个Looper，这也就是主线程为什么可以时候用Handler的原因***</span><br><span class="line"></span><br><span class="line">在上面的一节里我说了需要关注下5027和5028</span><br><span class="line"></span><br><span class="line">* 先说下5027这里的```Looper.prepareMainLooper();``` </span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">87     public static void prepareMainLooper() &#123;</span><br><span class="line">88         prepare(false);</span><br><span class="line">89         synchronized (Looper.class) &#123;</span><br><span class="line">90             if (sMainLooper != null) &#123;</span><br><span class="line">91                 throw new IllegalStateException(&quot;The main Looper has already been prepared.&quot;);</span><br><span class="line">92             &#125;</span><br><span class="line">93             sMainLooper = myLooper();</span><br><span class="line">94         &#125;</span><br><span class="line">95     &#125;</span><br><span class="line">~~~</span><br><span class="line">初始化在第一句话 ```prepare(false)```那里面</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">74     private static void prepare(boolean quitAllowed) &#123;</span><br><span class="line">75         if (sThreadLocal.get() != null) &#123;</span><br><span class="line">76             throw new RuntimeException(&quot;Only one Looper may be created per thread&quot;);</span><br><span class="line">77         &#125;</span><br><span class="line">78         sThreadLocal.set(new Looper(quitAllowed));</span><br><span class="line">79     &#125;</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">prepare函数里面也非常明确地告诉我们new了一个不可退出的Looper放在了ThreadLocal中</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">186    private Looper(boolean quitAllowed) &#123;</span><br><span class="line">187        mQueue = new MessageQueue(quitAllowed);</span><br><span class="line">188        mThread = Thread.currentThread();</span><br><span class="line">189    &#125;</span><br><span class="line">~~~ </span><br><span class="line"></span><br><span class="line">Looper创建的过程中为自己创建了一个MessageQueue，还保存了当前的线程，至此Looper创建完成。</span><br><span class="line"></span><br><span class="line">* 然后及时5221的```Looper.loop();``` 开启Looper的循环进行处理</span><br><span class="line"></span><br><span class="line">又一波长段代码了 不过还是一样 不想看的可以不看 没几句话有用的（其实除了注释也没几行）</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">109    public static void loop() &#123;</span><br><span class="line">110        final Looper me = myLooper();</span><br><span class="line">111        if (me == null) &#123;</span><br><span class="line">112            throw new RuntimeException(&quot;No Looper; Looper.prepare() wasn&apos;t called on this thread.&quot;);</span><br><span class="line">113        &#125;</span><br><span class="line">114        final MessageQueue queue = me.mQueue;</span><br><span class="line">115</span><br><span class="line">116        // Make sure the identity of this thread is that of the local process,</span><br><span class="line">117        // and keep track of what that identity token actually is.</span><br><span class="line">118        Binder.clearCallingIdentity();</span><br><span class="line">119        final long ident = Binder.clearCallingIdentity();</span><br><span class="line">120</span><br><span class="line">121        for (;;) &#123;</span><br><span class="line">122            Message msg = queue.next(); // might block</span><br><span class="line">123            if (msg == null) &#123;</span><br><span class="line">124                // No message indicates that the message queue is quitting.</span><br><span class="line">125                return;</span><br><span class="line">126            &#125;</span><br><span class="line">127</span><br><span class="line">128            // This must be in a local variable, in case a UI event sets the logger</span><br><span class="line">129            Printer logging = me.mLogging;</span><br><span class="line">130            if (logging != null) &#123;</span><br><span class="line">131                logging.println(&quot;&gt;&gt;&gt;&gt;&gt; Dispatching to &quot; + msg.target + &quot; &quot; +</span><br><span class="line">132                        msg.callback + &quot;: &quot; + msg.what);</span><br><span class="line">133            &#125;</span><br><span class="line">134</span><br><span class="line">135            msg.target.dispatchMessage(msg);</span><br><span class="line">136</span><br><span class="line">137            if (logging != null) &#123;</span><br><span class="line">138                logging.println(&quot;&lt;&lt;&lt;&lt;&lt; Finished to &quot; + msg.target + &quot; &quot; + msg.callback);</span><br><span class="line">139            &#125;</span><br><span class="line">140</span><br><span class="line">141            // Make sure that during the course of dispatching the</span><br><span class="line">142            // identity of the thread wasn&apos;t corrupted.</span><br><span class="line">143            final long newIdent = Binder.clearCallingIdentity();</span><br><span class="line">144            if (ident != newIdent) &#123;</span><br><span class="line">145                Log.wtf(TAG, &quot;Thread identity changed from 0x&quot;</span><br><span class="line">146                        + Long.toHexString(ident) + &quot; to 0x&quot;</span><br><span class="line">147                        + Long.toHexString(newIdent) + &quot; while dispatching to &quot;</span><br><span class="line">148                        + msg.target.getClass().getName() + &quot; &quot;</span><br><span class="line">149                        + msg.callback + &quot; what=&quot; + msg.what);</span><br><span class="line">150            &#125;</span><br><span class="line">151</span><br><span class="line">152            msg.recycleUnchecked();</span><br><span class="line">153        &#125;</span><br><span class="line">154    &#125;</span><br><span class="line">~~~</span><br><span class="line"></span><br><span class="line">关注点 </span><br><span class="line">&gt;110的```final Looper me = myLooper();``` 获取当前线程的Looper</span><br><span class="line">&gt;121的```for (;;) ```  死循环来处理message中的信息</span><br><span class="line">&gt;</span><br><span class="line">&gt;122的```Message msg = queue.next();``` 获取messageQueue的信息（这里是怎么获取的之后MessageQueue我们再说）</span><br><span class="line">&gt;</span><br><span class="line">&gt;135的```msg.target.dispatchMessage(msg);``` 处理信息（怎么处理？肯定是handler里面处理了， tag里面保存的是handler 而处理什么 之后handler会详细的说到）</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">160    public static Looper myLooper() &#123;</span><br><span class="line">161        return sThreadLocal.get();</span><br><span class="line">162    &#125;</span><br><span class="line">~~~</span><br><span class="line">myLooper是在ThreadLocal中获取到的 </span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#### ThreadLocal是什么？</span><br><span class="line">&gt;&gt;**ThreadLocal**  每次一看名字，第一反应就是xx线程。这里不紧自骂一句线程”你妹呀，什么就线程呀，他明明是一个负责存储的类“  存储类 不同线程不同的副本互不影响，作用域整个线程内</span><br><span class="line"></span><br><span class="line">* 先说set</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">179    public void set(T value) &#123;</span><br><span class="line">180        Thread t = Thread.currentThread();</span><br><span class="line">181        ThreadLocalMap map = getMap(t);</span><br><span class="line">182        if (map != null)</span><br><span class="line">183            map.set(this, value);</span><br><span class="line">184        else</span><br><span class="line">185            createMap(t, value);</span><br><span class="line">186    &#125;</span><br><span class="line">~~~</span><br><span class="line"></span><br><span class="line">看到这可能之前的我就不看了，用的map存的。但事实不是这样的。。。```static class ThreadLocalMap &#123;```。。。尼玛Map是自己定义的和Map类没有直系关系还是个内部类，你他妈玩我，这要是去除面试问我细节我按Map来回答不他妈二逼了？事实上确实被某位面试官下过套。</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">416 private void set(ThreadLocal key, Object value) &#123;</span><br><span class="line">417</span><br><span class="line">418            // We don&apos;t use a fast path as with get() because it is at</span><br><span class="line">419            // least as common to use set() to create new entries as</span><br><span class="line">420            // it is to replace existing ones, in which case, a fast</span><br><span class="line">421            // path would fail more often than not.</span><br><span class="line">422</span><br><span class="line">423            Entry[] tab = table;</span><br><span class="line">424            int len = tab.length;</span><br><span class="line">425            int i = key.threadLocalHashCode &amp; (len-1);</span><br><span class="line">426</span><br><span class="line">427            for (Entry e = tab[i];</span><br><span class="line">428                 e != null;</span><br><span class="line">429                 e = tab[i = nextIndex(i, len)]) &#123;</span><br><span class="line">430                ThreadLocal k = e.get();</span><br><span class="line">431</span><br><span class="line">432                if (k == key) &#123;</span><br><span class="line">433                    e.value = value;</span><br><span class="line">434                    return;</span><br><span class="line">435                &#125;</span><br><span class="line">436</span><br><span class="line">437                if (k == null) &#123;</span><br><span class="line">438                    replaceStaleEntry(key, value, i);</span><br><span class="line">439                    return;</span><br><span class="line">440                &#125;</span><br><span class="line">441            &#125;</span><br><span class="line">442</span><br><span class="line">443            tab[i] = new Entry(key, value);</span><br><span class="line">444            int sz = ++size;</span><br><span class="line">445            if (!cleanSomeSlots(i, sz) &amp;&amp; sz &gt;= threshold)</span><br><span class="line">446                rehash();</span><br><span class="line">447        &#125;</span><br><span class="line">~~~</span><br><span class="line"></span><br><span class="line">&gt;&gt;看了代码我们知道了 这里面用的是table数组存的！！！</span><br><span class="line">看货hashMap源码的应该知道425的```key.threadLocalHashCode &amp; (len-1);```是干什么的 是取余数的  利用线程的hashCode进行计算</span><br><span class="line">这块代码块的整体作用是利用余数作为下表，当发生冲突时，将下标自增向后移的方式解决冲突。在最后进行判断，然后来确定是否rehash进行扩容。原理上与hashMap相似 但是hashMap是以数组加链表来解决冲突的。解决冲突的方式不相同。这里就不在啊多做赘述了。</span><br><span class="line"></span><br><span class="line">***ps：ThreadLocal 本质就是在线程调用的时候获取到以当前进程所对应的变量 不同的变量获取的不是一个，从而实现了线程变量相互隔离，而线程中的变量作用域就成了整个线程***</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#### MessageQueue是什么？</span><br><span class="line">&gt;&gt;** MessageQueue** 管理消息的消息队列 从上面Looper的代码可以看出 每个Looper中持有一个MessageQueue对象</span><br><span class="line"></span><br><span class="line">&gt;* 一个消息队列最重要的方法肯定是插入和取出了</span><br><span class="line">&gt;</span><br><span class="line">&gt;* *   enqueueMessage()方法---------&gt;插入</span><br><span class="line">&gt;* *   next()方法-------------------&gt;取出并移除</span><br><span class="line"></span><br><span class="line">***那首先要看的肯定是怎么放入MessageQueue里面了， 为什么说放入是这个方法 后面看到handler就能知道了***</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">boolean enqueueMessage(Message msg, long when) &#123;</span><br><span class="line">316        if (msg.target == null) &#123;</span><br><span class="line">317            throw new IllegalArgumentException(&quot;Message must have a target.&quot;);</span><br><span class="line">318        &#125;</span><br><span class="line">319        if (msg.isInUse()) &#123;</span><br><span class="line">320            throw new IllegalStateException(msg + &quot; This message is already in use.&quot;);</span><br><span class="line">321        &#125;</span><br><span class="line">322</span><br><span class="line">323        synchronized (this) &#123;</span><br><span class="line">324            if (mQuitting) &#123;</span><br><span class="line">325                IllegalStateException e = new IllegalStateException(</span><br><span class="line">326                        msg.target + &quot; sending message to a Handler on a dead thread&quot;);</span><br><span class="line">327                Log.w(&quot;MessageQueue&quot;, e.getMessage(), e);</span><br><span class="line">328                msg.recycle();</span><br><span class="line">329                return false;</span><br><span class="line">330            &#125;</span><br><span class="line">331</span><br><span class="line">332            msg.markInUse();</span><br><span class="line">333            msg.when = when;</span><br><span class="line">334            Message p = mMessages;</span><br><span class="line">335            boolean needWake;</span><br><span class="line">336            if (p == null || when == 0 || when &lt; p.when) &#123;</span><br><span class="line">337                // New head, wake up the event queue if blocked.</span><br><span class="line">338                msg.next = p;</span><br><span class="line">339                mMessages = msg;</span><br><span class="line">340                needWake = mBlocked;</span><br><span class="line">341            &#125; else &#123;</span><br><span class="line">342                // Inserted within the middle of the queue.  Usually we don&apos;t have to wake</span><br><span class="line">343                // up the event queue unless there is a barrier at the head of the queue</span><br><span class="line">344                // and the message is the earliest asynchronous message in the queue.</span><br><span class="line">345                needWake = mBlocked &amp;&amp; p.target == null &amp;&amp; msg.isAsynchronous();</span><br><span class="line">346                Message prev;</span><br><span class="line">347                for (;;) &#123;</span><br><span class="line">348                    prev = p;</span><br><span class="line">349                    p = p.next;</span><br><span class="line">350                    if (p == null || when &lt; p.when) &#123;</span><br><span class="line">351                        break;</span><br><span class="line">352                    &#125;</span><br><span class="line">353                    if (needWake &amp;&amp; p.isAsynchronous()) &#123;</span><br><span class="line">354                        needWake = false;</span><br><span class="line">355                    &#125;</span><br><span class="line">356                &#125;</span><br><span class="line">357                msg.next = p; // invariant: p == prev.next</span><br><span class="line">358                prev.next = msg;</span><br><span class="line">359            &#125;</span><br><span class="line">360</span><br><span class="line">361            // We can assume mPtr != 0 because mQuitting is false.</span><br><span class="line">362            if (needWake) &#123;</span><br><span class="line">363                nativeWake(mPtr);</span><br><span class="line">364            &#125;</span><br><span class="line">365        &#125;</span><br><span class="line">366        return true;</span><br><span class="line">367    &#125;</span><br><span class="line">~~~</span><br><span class="line">前面的一部分是判断一些状态 核心在于336行开始将message放入列表中，这个位置的放入和的for(;;)代码块，这个位置可不是死循环哦。因为内部是一个单链表实现的，单链表还不是循环链表肯定有结束的时候，所以这个for不会是死循环。</span><br><span class="line">而这个的目的就是将message放入这个自己的链表的尾部实现message的插入</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">***然后就是取出并移除了，这个方法是不是看的很眼熟呢？***</span><br><span class="line">&gt;原因就是ActivityThread的Main函数里的Looper.loop()方法里面调用过</span><br><span class="line">&gt;</span><br><span class="line">&gt;* 下面又是一大段源码 这里面涉及两大部分一个是Native层的，一个是Java层的。这里呢我不过多的对Native层的做过多的赘述了 咱么只看Java层的的.</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">127    Message next() &#123;</span><br><span class="line">128        // Return here if the message loop has already quit and been disposed.</span><br><span class="line">129        // This can happen if the application tries to restart a looper after quit</span><br><span class="line">130        // which is not supported.</span><br><span class="line">131        final long ptr = mPtr;</span><br><span class="line">132        if (ptr == 0) &#123;</span><br><span class="line">133            return null;</span><br><span class="line">134        &#125;</span><br><span class="line">135</span><br><span class="line">136        int pendingIdleHandlerCount = -1; // -1 only during first iteration</span><br><span class="line">137        int nextPollTimeoutMillis = 0;</span><br><span class="line">138        for (;;) &#123;</span><br><span class="line">139            if (nextPollTimeoutMillis != 0) &#123;</span><br><span class="line">140                Binder.flushPendingCommands();</span><br><span class="line">141            &#125;</span><br><span class="line">142</span><br><span class="line">143            nativePollOnce(ptr, nextPollTimeoutMillis);</span><br><span class="line">144</span><br><span class="line">145            synchronized (this) &#123;</span><br><span class="line">146                // Try to retrieve the next message.  Return if found.</span><br><span class="line">147                final long now = SystemClock.uptimeMillis();</span><br><span class="line">148                Message prevMsg = null;</span><br><span class="line">149                Message msg = mMessages;</span><br><span class="line">150                if (msg != null &amp;&amp; msg.target == null) &#123;</span><br><span class="line">151                    // Stalled by a barrier.  Find the next asynchronous message in the queue.</span><br><span class="line">152                    do &#123;</span><br><span class="line">153                        prevMsg = msg;</span><br><span class="line">154                        msg = msg.next;</span><br><span class="line">155                    &#125; while (msg != null &amp;&amp; !msg.isAsynchronous());</span><br><span class="line">156                &#125;</span><br><span class="line">157                if (msg != null) &#123;</span><br><span class="line">158                    if (now &lt; msg.when) &#123;</span><br><span class="line">159                        // Next message is not ready.  Set a timeout to wake up when it is ready.</span><br><span class="line">160                        nextPollTimeoutMillis = (int) Math.min(msg.when - now, Integer.MAX_VALUE);</span><br><span class="line">161                    &#125; else &#123;</span><br><span class="line">162                        // Got a message.</span><br><span class="line">163                        mBlocked = false;</span><br><span class="line">164                        if (prevMsg != null) &#123;</span><br><span class="line">165                            prevMsg.next = msg.next;</span><br><span class="line">166                        &#125; else &#123;</span><br><span class="line">167                            mMessages = msg.next;</span><br><span class="line">168                        &#125;</span><br><span class="line">169                        msg.next = null;</span><br><span class="line">170                        if (false) Log.v(&quot;MessageQueue&quot;, &quot;Returning message: &quot; + msg);</span><br><span class="line">171                        return msg;</span><br><span class="line">172                    &#125;</span><br><span class="line">173                &#125; else &#123;</span><br><span class="line">174                    // No more messages.</span><br><span class="line">175                    nextPollTimeoutMillis = -1;</span><br><span class="line">176                &#125;</span><br><span class="line">177</span><br><span class="line">178                // Process the quit message now that all pending messages have been handled.</span><br><span class="line">179                if (mQuitting) &#123;</span><br><span class="line">180                    dispose();</span><br><span class="line">181                    return null;</span><br><span class="line">182                &#125;</span><br><span class="line">183</span><br><span class="line">184                // If first time idle, then get the number of idlers to run.</span><br><span class="line">185                // Idle handles only run if the queue is empty or if the first message</span><br><span class="line">186                // in the queue (possibly a barrier) is due to be handled in the future.</span><br><span class="line">187                if (pendingIdleHandlerCount &lt; 0</span><br><span class="line">188                        &amp;&amp; (mMessages == null || now &lt; mMessages.when)) &#123;</span><br><span class="line">189                    pendingIdleHandlerCount = mIdleHandlers.size();</span><br><span class="line">190                &#125;</span><br><span class="line">191                if (pendingIdleHandlerCount &lt;= 0) &#123;</span><br><span class="line">192                    // No idle handlers to run.  Loop and wait some more.</span><br><span class="line">193                    mBlocked = true;</span><br><span class="line">194                    continue;</span><br><span class="line">195                &#125;</span><br><span class="line">196</span><br><span class="line">197                if (mPendingIdleHandlers == null) &#123;</span><br><span class="line">198                    mPendingIdleHandlers = new IdleHandler[Math.max(pendingIdleHandlerCount, 4)];</span><br><span class="line">199                &#125;</span><br><span class="line">200                mPendingIdleHandlers = mIdleHandlers.toArray(mPendingIdleHandlers);</span><br><span class="line">201            &#125;</span><br><span class="line">202</span><br><span class="line">203            // Run the idle handlers.</span><br><span class="line">204            // We only ever reach this code block during the first iteration.</span><br><span class="line">205            for (int i = 0; i &lt; pendingIdleHandlerCount; i++) &#123;</span><br><span class="line">206                final IdleHandler idler = mPendingIdleHandlers[i];</span><br><span class="line">207                mPendingIdleHandlers[i] = null; // release the reference to the handler</span><br><span class="line">208</span><br><span class="line">209                boolean keep = false;</span><br><span class="line">210                try &#123;</span><br><span class="line">211                    keep = idler.queueIdle();</span><br><span class="line">212                &#125; catch (Throwable t) &#123;</span><br><span class="line">213                    Log.wtf(&quot;MessageQueue&quot;, &quot;IdleHandler threw exception&quot;, t);</span><br><span class="line">214                &#125;</span><br><span class="line">215</span><br><span class="line">216                if (!keep) &#123;</span><br><span class="line">217                    synchronized (this) &#123;</span><br><span class="line">218                        mIdleHandlers.remove(idler);</span><br><span class="line">219                    &#125;</span><br><span class="line">220                &#125;</span><br><span class="line">221            &#125;</span><br><span class="line">222</span><br><span class="line">223            // Reset the idle handler count to 0 so we do not run them again.</span><br><span class="line">224            pendingIdleHandlerCount = 0;</span><br><span class="line">225</span><br><span class="line">226            // While calling an idle handler, a new message could have been delivered</span><br><span class="line">227            // so go back and look again for a pending message without waiting.</span><br><span class="line">228            nextPollTimeoutMillis = 0;</span><br><span class="line">229        &#125;</span><br><span class="line">230    &#125;</span><br><span class="line">~~~</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&gt;***又到了代码分析的时候了***</span><br><span class="line">&gt;&gt;* 在143行```nativePollOnce(ptr, nextPollTimeoutMillis);``` 这个是一个native层的处理 多的不说了 ***先总结一句：&quot;native层也有一套类似的消息机制，每次处理的时候先处理native的，然后是java层的，java层的里面也有区分就是先取异步的后取同步的 最后处理闲时handler”***  </span><br><span class="line">&gt;&gt;这里给个[地址](http://www.jb51.net/article/93199.htm)看看，里面有提到</span><br><span class="line"></span><br><span class="line">&gt;&gt;* 150-156行 看151的注释 提到 被一个barrier开启，获取第一个一异步message。 这里是找出异步Message 然后并处理message  </span><br><span class="line">&gt;&gt;这里Message居然还分同步和异步的，同步和异步的区别是啥？  这个在之后Message里在说。  </span><br><span class="line">&gt;&gt;细心的朋友可能会发现150行代码判断条件是```msg.target==null``` 之前可是提过一嘴msg.target里面应该存的是handler的呀 null是什么鬼 这里要引入一个Barrier（障碍物）的概念  </span><br><span class="line">&gt;&gt;***Barrier是一种特殊的Message，他的target是null。（只有Barrier的target可以为null，如果我们自己试图设置Message的target为null的话会报异常）作用呢?用于区别拦截队伍中的同步信息，放行异步消息***  </span><br><span class="line">这里也给个[地址](https://hjdzone.gitbooks.io/thinkandroid/content/ThreadMessage/Chapter_1_6.html)进行拓展，有介绍虽然说的不是很细，可以作为入门参考。</span><br><span class="line"></span><br><span class="line">&gt;&gt;* 157-176这块的功能是 进行当前时间和任务时间的比较，看任务时间是不是已经到了，如果到了那么就返回当前任务，没有就是继续往下走 死循环去</span><br><span class="line"></span><br><span class="line">&gt;&gt;* 178-182 看注释就能知道要退出了 mQuitting的值是在quit()中设置的，当然设置之前要判断是否mQuitAllowed==true了 就是最开始创建时候的设置的</span><br><span class="line"></span><br><span class="line">&gt;&gt;* 之后运行的就是闲时消息的获取了。 这个很好理解，在MessageQueue也有一些函数是专门为了设置闲时消息的了 这里就不是说了</span><br><span class="line">&gt;&gt;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">***PS：综上所属的就是整个messageQueue的获取流程，突然发现这玩意越写越多，还是点到未知的，要不 一个handler就没头了，其他的还搞个球球。之后有时间在完善吧***</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">####Message是什么？</span><br><span class="line">&gt;&gt;**Message** 消息  就是这种类型作为存储类型的媒介，存入MessageQueue中 实现获取处理用的</span><br><span class="line"></span><br><span class="line">Message的构造方法上有这么一句注释 ```/** Constructor (but the preferred way to get a Message is to call &#123;@link #obtain() Message.obtain()&#125;).*/</span><br></pre></td></tr></table></figure></p>
+</blockquote>
+<p>Message不建议使用new来创建一个消息，建议使用obtain来创建，简而言之obtain方法里面会有一些初始化的方法，找到里面对我们有用的,也是几乎每个obtion重载方法里面都有的<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br></pre></td><td class="code"><pre><span class="line">&gt;* m代表message  </span><br><span class="line">&gt;* h代表Handler  </span><br><span class="line">这也证明了之前所说的msg.target里面存的是handler这个东东，也证明了在Looper.loop()方法里面的msg.target.dispatchMessage(msg)会将msg分发到handler的dispatchMessage进行分发处理（怎么处理的话之后handler里面会说到）</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">118  /**</span><br><span class="line">119     * Return a new Message instance from the global pool. Allows us to</span><br><span class="line">120     * avoid allocating new objects in many cases.</span><br><span class="line">121     */</span><br><span class="line">122 public static Message obtain() &#123;</span><br><span class="line">123        synchronized (sPoolSync) &#123;</span><br><span class="line">124            if (sPool != null) &#123;</span><br><span class="line">125                Message m = sPool;</span><br><span class="line">126                sPool = m.next;</span><br><span class="line">127                m.next = null;</span><br><span class="line">128                m.flags = 0; // clear in-use flag</span><br><span class="line">129                sPoolSize--;</span><br><span class="line">130                return m;</span><br><span class="line">131            &#125;</span><br><span class="line">132        &#125;</span><br><span class="line">133        return new Message();</span><br><span class="line">134    &#125;</span><br><span class="line">~~~</span><br><span class="line">  </span><br><span class="line"></span><br><span class="line">在这会发现 我查查Message处理MessageQueue 居然还有个一个sPool 全局的信息池来维护的。所以老师是敲黑板了 这个信息池是做什么用的呢，功能就是复用。从上面的代码块可以看出来，sPool是一个链表结构的。***这个链表里存什么呢，存的就是可复用的Message***  为什么这么说看完下面的你就知道了 ，总所周知链表肯定要有一个存和一个取得过程，上面的代码我们看到的是取，那么存在哪呢就在下面，当looper.loop()中处理完dispatchMessage会调用到下面的函数。</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">114   private static final int MAX_POOL_SIZE = 50;</span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">291    void recycleUnchecked() &#123;</span><br><span class="line">292        // Mark the message as in use while it remains in the recycled object pool.</span><br><span class="line">293        // Clear out all other details.</span><br><span class="line">294        flags = FLAG_IN_USE;</span><br><span class="line">295        what = 0;</span><br><span class="line">296        arg1 = 0;</span><br><span class="line">297        arg2 = 0;</span><br><span class="line">298        obj = null;</span><br><span class="line">299        replyTo = null;</span><br><span class="line">300        sendingUid = -1;</span><br><span class="line">301        when = 0;</span><br><span class="line">302        target = null;</span><br><span class="line">303        callback = null;</span><br><span class="line">304        data = null;</span><br><span class="line">305</span><br><span class="line">306        synchronized (sPoolSync) &#123;</span><br><span class="line">307            if (sPoolSize &lt; MAX_POOL_SIZE) &#123;</span><br><span class="line">308                next = sPool;</span><br><span class="line">309                sPool = this;</span><br><span class="line">310                sPoolSize++;</span><br><span class="line">311            &#125;</span><br><span class="line">312        &#125;</span><br><span class="line">313    &#125;</span><br><span class="line">~~~</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">最后306行到313行 就可以看出，当sPool的个数没有大于50的时候，这个使用完的message就将会放回sPool中去，而且放在了第一个位置哦。当大于50是就是不忘pool中存了。因为篇幅限制这就不多写了[看这里吧](http://www.jianshu.com/p/f6f357b3db89)</span><br><span class="line">这样message大部分核心的东西就完成了 </span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">###Handler是什么？</span><br><span class="line"></span><br><span class="line">Handler 翻译过来是处理者的意思，从翻译上来看显而易见handler里面承载着消息的处理，如果看过上述章节，你肯定知道handler.dispatchMessage来处理消息</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">93     public void dispatchMessage(Message msg) &#123;</span><br><span class="line">94         if (msg.callback != null) &#123;</span><br><span class="line">95             handleCallback(msg);</span><br><span class="line">96         &#125; else &#123;</span><br><span class="line">97             if (mCallback != null) &#123;</span><br><span class="line">98                 if (mCallback.handleMessage(msg)) &#123;</span><br><span class="line">99                     return;</span><br><span class="line">100                &#125;</span><br><span class="line">101            &#125;</span><br><span class="line">102            handleMessage(msg);</span><br><span class="line">103        &#125;</span><br><span class="line">104    &#125;</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">从上面代码可以看出 如果有handlerCallback就他处理，没有就handlerMessage来处理 对于这个方法我就不说了，毕竟使用过handler的人大多数肯定事实现过这个方法。然后处理这的逻辑就通了，looper开启循环。messageQueue来获取message，获取到之后从message.target中获取handler根据得到的handler调用dispatchMessage来进行消息处理</span><br><span class="line"></span><br><span class="line">**那么感觉好像少了点什么，那就是消息是怎么插入到messageQueue中的**</span><br><span class="line"></span><br><span class="line">在我们使用handler消息机制的时候我们肯定有到过post或者post方法postDelayed等方法，其实内部都是汇集到一处的。我们以post为例</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">324  public final boolean post(Runnable r)</span><br><span class="line">325    &#123;</span><br><span class="line">326       return  sendMessageDelayed(getPostMessage(r), 0);</span><br><span class="line">327    &#125;</span><br><span class="line">~~~</span><br><span class="line">这里有个地方很容易呗忽略getPostMessage方法</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">725    private static Message getPostMessage(Runnable r) &#123;</span><br><span class="line">726        Message m = Message.obtain();</span><br><span class="line">727        m.callback = r;</span><br><span class="line">728        return m;</span><br><span class="line">729    &#125;</span><br><span class="line">~~~</span><br><span class="line"></span><br><span class="line">看到了吧传说中的Message被建立了出来</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">565    public final boolean More ...sendMessageDelayed(Message msg, long delayMillis)</span><br><span class="line">566    &#123;</span><br><span class="line">567        if (delayMillis &lt; 0) &#123;</span><br><span class="line">568            delayMillis = 0;</span><br><span class="line">569        &#125;</span><br><span class="line">570        return sendMessageAtTime(msg, SystemClock.uptimeMillis() + delayMillis);</span><br><span class="line">571    &#125;</span><br><span class="line">~~~</span><br><span class="line"></span><br><span class="line">这里吧时间转换了下对应的出发时间后调用了sendMessageAtTime而这个方法就是post等方法最终调用方法</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">592    public boolean sendMessageAtTime(Message msg, long uptimeMillis) &#123;</span><br><span class="line">593        MessageQueue queue = mQueue;</span><br><span class="line">594        if (queue == null) &#123;</span><br><span class="line">595            RuntimeException e = new RuntimeException(</span><br><span class="line">596                    this + &quot; sendMessageAtTime() called with no mQueue&quot;);</span><br><span class="line">597            Log.w(&quot;Looper&quot;, e.getMessage(), e);</span><br><span class="line">598            return false;</span><br><span class="line">599        &#125;</span><br><span class="line">600        return enqueueMessage(queue, msg, uptimeMillis);</span><br><span class="line">601    &#125;</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">要往MessageQueue里面插了</span><br><span class="line"></span><br><span class="line">~~~</span><br><span class="line">626    private boolean More ...enqueueMessage(MessageQueue queue, Message msg, long uptimeMillis) &#123;</span><br><span class="line">627        msg.target = this;</span><br><span class="line">628        if (mAsynchronous) &#123;</span><br><span class="line">629            msg.setAsynchronous(true);</span><br><span class="line">630        &#125;</span><br><span class="line">631        return queue.enqueueMessage(msg, uptimeMillis);</span><br><span class="line">632    &#125;</span><br><span class="line">~~~</span><br><span class="line"></span><br><span class="line">在像MessageQueue插入之前，对message的target赋值，将handler传了进去。也断代码也证实了之前所说的。之后的流程大家应该就已将知道了</span><br><span class="line"></span><br><span class="line">总结下handler的整体流程  </span><br><span class="line">***sendMessage-&gt;sendMessageDelayed-&gt;sendMessageAtTime-&gt;enqueueMessage</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">至此整个消息流程的分发机制算是整理完了 打算弄个流程图 不过暂时没有图片存取的地方 之后再添加吧 </span><br><span class="line"></span><br><span class="line"></span><br><span class="line">拓展个知识点 </span><br><span class="line">ActivityThread里面```1161    private class H extends Handler</span><br></pre></td></tr></table></figure></p>
+<p>这个里面定义了一些跟生命周期有关的东东 可以看一下 右后有时间写app启动流程的时候再细说</p>
+<p>使用：怎么使用自己的Looper呢：<a href="https://developer.android.com/reference/android/os/Looper.html" target="_blank" rel="noopener">官方示例</a><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">class LooperThread extends Thread &#123;</span><br><span class="line">    public Handler mHandler;</span><br><span class="line"></span><br><span class="line">    public void run() &#123;</span><br><span class="line">        Looper.prepare();</span><br><span class="line"></span><br><span class="line">        mHandler = new Handler() &#123;</span><br><span class="line">            public void handleMessage(Message msg) &#123;</span><br><span class="line">                // process incoming messages here</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        Looper.loop();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>感觉有没有很多？ 有封装哦 HandlerThread 这个类使用简单，代码两少</p>
+<p>如果你有耐心开完这么多代码 你应该对消息机制有了一个整体的认识了</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2018/05/31/hello-world/" rel="prev" title="Hello World">
+                Hello World <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhe8300975</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#handler机制-梳理"><span class="nav-number">1.</span> <span class="nav-text">handler机制 梳理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#ActivityThread是什么？"><span class="nav-number">1.0.0.1.</span> <span class="nav-text">ActivityThread是什么？</span></a></li></ol></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhe8300975</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
