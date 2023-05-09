@@ -1,1 +1,4 @@
 .DS_Store
+.deploy_git/
+.idea/
+public/
